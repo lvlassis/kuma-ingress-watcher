@@ -2,3 +2,9 @@
 *__pycache__*
 poetry.lock
 .env
+/.coverage
+/.nvim.lua
+/CLAUDE.md
+/bugs-found.md
+/local-dev-setup.md
+/pr-fix-orphaned-monitors.md
