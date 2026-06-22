@@ -1,88 +1,54 @@
 import unittest
-from unittest.mock import patch
-from kuma_ingress_watcher.controller import create_or_update_monitor
+from unittest.mock import patch, MagicMock
+from kuma_ingress_watcher.controller import reconcile, MonitorSpec
 
 
-class TestCreateOrUpdateMonitor(unittest.TestCase):
+class TestReconcileCreate(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.kuma")
-    @patch("kuma_ingress_watcher.controller.logger")
-    def test_create_or_update_monitor_update(self, mock_logger, mock_kuma):
-        mock_kuma.get_monitors.return_value = [
-            {"name": "test", "url": "http://oldurl.com", "id": 1}
-        ]
-
-        create_or_update_monitor("test", "http://newurl.com", 60, "http", None, "GET", "testgroup", ["200-299"])
-
-        mock_logger.info.assert_called_with(
-            "Updating monitor for test with URL: http://newurl.com"
-        )
-        mock_kuma.edit_monitor.assert_called_once_with(
-            1,
-            url="http://newurl.com",
-            interval=60,
-            type="http",
-            headers=None,
-            method="GET",
-            parent=None,
-            accepted_statuscodes=["200-299"],
-        )
-
-    @patch("kuma_ingress_watcher.controller.kuma")
-    @patch("kuma_ingress_watcher.controller.logger")
-    def test_create_or_update_monitor_create(self, mock_logger, mock_kuma):
-        mock_kuma.get_monitors.return_value = []
-
-        create_or_update_monitor("test", "http://newurl.com", 60, "http", None, "GET", None, ["200-299"])
-
-        mock_logger.info.assert_any_call(
-            "Creating new monitor for test with URL: http://newurl.com"
-        )
-        mock_logger.info.assert_any_call("Successfully created monitor for test")
+    @patch("kuma_ingress_watcher.controller.ownership_tag_id", 1)
+    def test_creates_missing_monitor_and_tags_it(self, mock_kuma):
+        mock_kuma.add_monitor.return_value = {"monitorID": 5}
+        desired = {"app-default": MonitorSpec(name="app-default", url="https://example.com")}
+        reconcile(desired, actual={}, groups_map={})
         mock_kuma.add_monitor.assert_called_once_with(
             type="http",
-            name="test",
-            url="http://newurl.com",
+            name="app-default",
+            url="https://example.com",
             interval=60,
             headers=None,
             method="GET",
             parent=None,
-            accepted_statuscodes=["200-299"],
+            accepted_statuscodes=None,
         )
+        mock_kuma.add_monitor_tag.assert_called_once_with(tag_id=1, monitor_id=5, value="")
 
     @patch("kuma_ingress_watcher.controller.kuma")
-    @patch("kuma_ingress_watcher.controller.logger")
-    def test_create_or_update_monitor_create_and_find_group(self, mock_logger, mock_kuma):
-        mock_kuma.get_monitors.return_value = [
-            {"name": "testgroup", "type": "group", "id": 1}
-        ]
-
-        create_or_update_monitor("test", "http://newurl.com", 60, "http", None, "GET", "testgroup")
-
-        mock_logger.info.assert_any_call(
-            "Creating new monitor for test with URL: http://newurl.com"
-        )
-        mock_logger.info.assert_any_call("Successfully created monitor for test")
+    @patch("kuma_ingress_watcher.controller.ownership_tag_id", 1)
+    def test_resolves_parent_group_by_name(self, mock_kuma):
+        mock_kuma.add_monitor.return_value = {"monitorID": 5}
+        desired = {"app": MonitorSpec(name="app", url="https://example.com", parent="my-group")}
+        groups_map = {"my-group": 99}
+        reconcile(desired, actual={}, groups_map=groups_map)
         mock_kuma.add_monitor.assert_called_once_with(
             type="http",
-            name="test",
-            url="http://newurl.com",
+            name="app",
+            url="https://example.com",
             interval=60,
             headers=None,
             method="GET",
-            parent=1,
+            parent=99,
             accepted_statuscodes=None,
         )
 
     @patch("kuma_ingress_watcher.controller.kuma")
+    @patch("kuma_ingress_watcher.controller.ownership_tag_id", 1)
     @patch("kuma_ingress_watcher.controller.logger")
-    def test_create_or_update_monitor_error(self, mock_logger, mock_kuma):
-        mock_kuma.get_monitors.side_effect = Exception("API error")
-
-        create_or_update_monitor("test", "http://newurl.com", 60, "http", None, "GET")
-
-        mock_logger.error.assert_called_once_with(
-            "Failed to create or update monitor for test: API error"
-        )
+    def test_create_failure_logs_error(self, mock_logger, mock_kuma):
+        mock_kuma.add_monitor.side_effect = Exception("API error")
+        desired = {"app": MonitorSpec(name="app", url="https://example.com")}
+        reconcile(desired, actual={}, groups_map={})
+        mock_logger.error.assert_called_once()
+        mock_kuma.add_monitor_tag.assert_not_called()
 
 
 if __name__ == "__main__":

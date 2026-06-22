@@ -1,36 +1,19 @@
 import unittest
-from unittest.mock import patch
-from kuma_ingress_watcher.controller import process_routing_object
+from kuma_ingress_watcher.controller import compute_monitors_for_routing_object, MonitorSpec
 
 
-class TestProcessRoutingObject(unittest.TestCase):
-    @patch("kuma_ingress_watcher.controller.create_or_update_monitor")
-    @patch("kuma_ingress_watcher.controller.delete_monitor")
-    def test_process_routing_object_single_route(
-        self, mock_delete_monitor, mock_create_or_update_monitor
-    ):
-        # Define the test item with a single route
+class TestComputeMonitorsForRoutingObject(unittest.TestCase):
+    def test_single_route_returns_one_spec(self):
         item = {
             "metadata": {"name": "test", "namespace": "default", "annotations": {}},
             "spec": {"routes": [{"match": "Host(`example.com`)"}]},
         }
-        type_obj = "IngressRoute"
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(len(specs), 1)
+        self.assertEqual(specs[0].name, "test-default")
+        self.assertEqual(specs[0].url, "https://example.com")
 
-        # Call the function under test
-        process_routing_object(item, type_obj)
-
-        # Check that create_or_update_monitor was called
-        mock_create_or_update_monitor.assert_called()
-        self.assertEqual(mock_create_or_update_monitor.call_count, 1)
-        # Verify that delete_monitor was not called
-        mock_delete_monitor.assert_not_called()
-
-    @patch("kuma_ingress_watcher.controller.create_or_update_monitor")
-    @patch("kuma_ingress_watcher.controller.delete_monitor")
-    def test_process_routing_object_multiple_routes(
-        self, mock_delete_monitor, mock_create_or_update_monitor
-    ):
-        # Define the test item with multiple routes
+    def test_multiple_routes_returns_indexed_specs(self):
         item = {
             "metadata": {"name": "test", "namespace": "default", "annotations": {}},
             "spec": {
@@ -40,35 +23,105 @@ class TestProcessRoutingObject(unittest.TestCase):
                 ]
             },
         }
-        type_obj = "IngressRoute"
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(len(specs), 2)
+        self.assertEqual(specs[0].name, "test-default-1")
+        self.assertEqual(specs[1].name, "test-default-2")
 
-        # Call the function under test
-        process_routing_object(item, type_obj)
-
-        # Check that create_or_update_monitor was called for each route
-        self.assertEqual(mock_create_or_update_monitor.call_count, 2)
-        # Verify that delete_monitor was not called
-        mock_delete_monitor.assert_not_called()
-
-    @patch("kuma_ingress_watcher.controller.create_or_update_monitor")
-    @patch("kuma_ingress_watcher.controller.delete_monitor")
-    def test_process_routing_object_empty(
-        self, mock_delete_monitor, mock_create_or_update_monitor
-    ):
-        # Define the test item with no routes
+    def test_empty_routes_returns_empty_list(self):
         item = {
             "metadata": {"name": "test", "namespace": "default", "annotations": {}},
             "spec": {"routes": []},
         }
-        type_obj = "IngressRoute"
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs, [])
 
-        # Call the function under test
-        process_routing_object(item, type_obj)
+    def test_disabled_returns_empty_list(self):
+        item = {
+            "metadata": {
+                "name": "test",
+                "namespace": "default",
+                "annotations": {"uptime-kuma.autodiscovery.probe.enabled": "false"},
+            },
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs, [])
 
-        # Verify that create_or_update_monitor was not called
-        mock_create_or_update_monitor.assert_not_called()
-        # Verify that delete_monitor was not called
-        mock_delete_monitor.assert_not_called()
+    def test_custom_name_annotation(self):
+        item = {
+            "metadata": {
+                "name": "test",
+                "namespace": "default",
+                "annotations": {"uptime-kuma.autodiscovery.probe.name": "my-monitor"},
+            },
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs[0].name, "my-monitor")
+
+    def test_annotations_are_applied_to_spec(self):
+        item = {
+            "metadata": {
+                "name": "test",
+                "namespace": "default",
+                "annotations": {
+                    "uptime-kuma.autodiscovery.probe.interval": "120",
+                    "uptime-kuma.autodiscovery.probe.type": "tcp",
+                    "uptime-kuma.autodiscovery.probe.method": "POST",
+                    "uptime-kuma.autodiscovery.probe.parent": "my-group",
+                    "uptime-kuma.autodiscovery.probe.accepted-statuscodes": '["200-299"]',
+                },
+            },
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs[0].interval, 120)
+        self.assertEqual(specs[0].probe_type, "tcp")
+        self.assertEqual(specs[0].method, "POST")
+        self.assertEqual(specs[0].parent, "my-group")
+        self.assertEqual(specs[0].accepted_statuscodes, ["200-299"])
+
+    def test_invalid_accepted_statuscodes_is_skipped(self):
+        item = {
+            "metadata": {
+                "name": "test",
+                "namespace": "default",
+                "annotations": {
+                    "uptime-kuma.autodiscovery.probe.accepted-statuscodes": "not-a-list",
+                },
+            },
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertIsNone(specs[0].accepted_statuscodes)
+
+    def test_ingress_type_single_rule(self):
+        item = {
+            "metadata": {"name": "myapp", "namespace": "prod", "annotations": {}},
+            "spec": {"rules": [{"host": "example.com"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "Ingress")
+        self.assertEqual(len(specs), 1)
+        self.assertEqual(specs[0].name, "myapp-prod")
+        self.assertEqual(specs[0].url, "https://example.com")
+
+    def test_ingress_type_multiple_rules(self):
+        item = {
+            "metadata": {"name": "myapp", "namespace": "prod", "annotations": {}},
+            "spec": {"rules": [{"host": "a.com"}, {"host": "b.com"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "Ingress")
+        self.assertEqual(len(specs), 2)
+        self.assertEqual(specs[0].name, "myapp-prod-1")
+        self.assertEqual(specs[1].name, "myapp-prod-2")
+
+    def test_missing_spec_returns_empty_list(self):
+        item = {
+            "metadata": {"name": "test", "namespace": "default", "annotations": {}},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs, [])
 
 
 if __name__ == "__main__":

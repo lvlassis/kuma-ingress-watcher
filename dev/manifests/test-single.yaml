@@ -1,0 +1,27 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-single
+  namespace: default
+  annotations:
+    uptime-kuma.autodiscovery.probe.name: "App Solteiro"
+spec:
+  routes:
+    - match: Host(`app.local`)
+      kind: Rule
+      services:
+        - name: any
+          port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-single-2
+  namespace: default
+spec:
+  routes:
+    - match: Host(`app-2.local`)
+      kind: Rule
+      services:
+        - name: any
+          port: 80
