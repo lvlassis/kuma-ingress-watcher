@@ -28,6 +28,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOAD_MONITOR_FROM_FILE = str_to_bool(os.getenv("ENABLE_FILE_MONITOR", False))
 FILE_MONITOR_PATH = os.getenv("FILE_MONITOR_PATH", "/etc/kuma-controller/monitors.yaml")
 DEFAULT_PARENT = os.getenv("DEFAULT_PARENT", None)
+MONITOR_DEFAULT_NAME = os.getenv("MONITOR_DEFAULT_NAME", "{name}-{namespace}")
 
 OWNERSHIP_TAG_NAME = "kuma-ingress-watcher"
 OWNERSHIP_TAG_COLOR = "#3b82f6"
@@ -136,7 +137,10 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
 
     routes_or_rules = get_routes_or_rules(spec, type_obj)
     interval = int(annotations.get("uptime-kuma.autodiscovery.probe.interval", 60))
-    monitor_name = annotations.get("uptime-kuma.autodiscovery.probe.name", f"{name}-{namespace}")
+    monitor_name = annotations.get(
+        "uptime-kuma.autodiscovery.probe.name",
+        MONITOR_DEFAULT_NAME.replace("{name}", name).replace("{namespace}", namespace),
+    )
     probe_type = annotations.get("uptime-kuma.autodiscovery.probe.type", "http")
     headers = annotations.get("uptime-kuma.autodiscovery.probe.headers")
     port = annotations.get("uptime-kuma.autodiscovery.probe.port")

@@ -1,5 +1,6 @@
 import unittest
-from kuma_ingress_watcher.controller import compute_monitors_for_routing_object, MonitorSpec
+from unittest.mock import patch
+from kuma_ingress_watcher.controller import compute_monitors_for_routing_object
 
 
 class TestComputeMonitorsForRoutingObject(unittest.TestCase):
@@ -115,6 +116,37 @@ class TestComputeMonitorsForRoutingObject(unittest.TestCase):
         self.assertEqual(len(specs), 2)
         self.assertEqual(specs[0].name, "myapp-prod-1")
         self.assertEqual(specs[1].name, "myapp-prod-2")
+
+    @patch("kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME", "Cluster - {name}")
+    def test_custom_default_name_template(self):
+        item = {
+            "metadata": {"name": "iago-backend", "namespace": "default", "annotations": {}},
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs[0].name, "Cluster - iago-backend")
+
+    @patch("kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME", "Cluster - {name} ({namespace})")
+    def test_custom_default_name_template_with_namespace(self):
+        item = {
+            "metadata": {"name": "iago-backend", "namespace": "prod", "annotations": {}},
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs[0].name, "Cluster - iago-backend (prod)")
+
+    @patch("kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME", "Cluster - {name}")
+    def test_annotation_overrides_custom_default_name(self):
+        item = {
+            "metadata": {
+                "name": "iago-backend",
+                "namespace": "default",
+                "annotations": {"uptime-kuma.autodiscovery.probe.name": "my-custom-name"},
+            },
+            "spec": {"routes": [{"match": "Host(`example.com`)"}]},
+        }
+        specs = compute_monitors_for_routing_object(item, "IngressRoute")
+        self.assertEqual(specs[0].name, "my-custom-name")
 
     def test_missing_spec_returns_empty_list(self):
         item = {
