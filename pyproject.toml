@@ -29,6 +29,7 @@ addopts = "--cov=kuma_ingress_watcher --cov-report term-missing --verbose"
 
 [tool.flake8]
 max-line-length = 150
+exclude = [".venv"]
 
 [tool.semantic_release]
 version_variable = [

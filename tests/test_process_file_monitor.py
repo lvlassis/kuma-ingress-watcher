@@ -32,7 +32,9 @@ class TestComputeMonitorsFromFile(unittest.TestCase):
         mock_open.side_effect = FileNotFoundError
         specs = compute_monitors_from_file("nonexistent_file.yaml")
         self.assertEqual(specs, [])
-        mock_logger.error.assert_called_once_with("File nonexistent_file.yaml not found.")
+        mock_logger.error.assert_called_once_with(
+            "File nonexistent_file.yaml not found."
+        )
 
     @patch("kuma_ingress_watcher.controller.logger", spec=True)
     @patch("kuma_ingress_watcher.controller.open", new_callable=MagicMock)
@@ -47,7 +49,9 @@ class TestComputeMonitorsFromFile(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.logger", spec=True)
     @patch("kuma_ingress_watcher.controller.open", new_callable=MagicMock)
     def test_invalid_entry_format_is_skipped(self, mock_open, mock_logger):
-        mock_open.return_value.__enter__.return_value.read.return_value = "- not_a_dict\n"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "- not_a_dict\n"
+        )
         specs = compute_monitors_from_file("mock_file.yaml")
         self.assertEqual(specs, [])
         mock_logger.warning.assert_called_once_with(

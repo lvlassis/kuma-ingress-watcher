@@ -120,16 +120,27 @@ class TestComputeMonitorsForRoutingObject(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME", "Cluster - {name}")
     def test_custom_default_name_template(self):
         item = {
-            "metadata": {"name": "iago-backend", "namespace": "default", "annotations": {}},
+            "metadata": {
+                "name": "iago-backend",
+                "namespace": "default",
+                "annotations": {},
+            },
             "spec": {"routes": [{"match": "Host(`example.com`)"}]},
         }
         specs = compute_monitors_for_routing_object(item, "IngressRoute")
         self.assertEqual(specs[0].name, "Cluster - iago-backend")
 
-    @patch("kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME", "Cluster - {name} ({namespace})")
+    @patch(
+        "kuma_ingress_watcher.controller.MONITOR_DEFAULT_NAME",
+        "Cluster - {name} ({namespace})",
+    )
     def test_custom_default_name_template_with_namespace(self):
         item = {
-            "metadata": {"name": "iago-backend", "namespace": "prod", "annotations": {}},
+            "metadata": {
+                "name": "iago-backend",
+                "namespace": "prod",
+                "annotations": {},
+            },
             "spec": {"routes": [{"match": "Host(`example.com`)"}]},
         }
         specs = compute_monitors_for_routing_object(item, "IngressRoute")
@@ -141,7 +152,9 @@ class TestComputeMonitorsForRoutingObject(unittest.TestCase):
             "metadata": {
                 "name": "iago-backend",
                 "namespace": "default",
-                "annotations": {"uptime-kuma.autodiscovery.probe.name": "my-custom-name"},
+                "annotations": {
+                    "uptime-kuma.autodiscovery.probe.name": "my-custom-name"
+                },
             },
             "spec": {"routes": [{"match": "Host(`example.com`)"}]},
         }

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from kuma_ingress_watcher.controller import reconcile, MonitorSpec
 
 
@@ -8,7 +8,9 @@ class TestReconcileCreate(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.ownership_tag_id", 1)
     def test_creates_missing_monitor_and_tags_it(self, mock_kuma):
         mock_kuma.add_monitor.return_value = {"monitorID": 5}
-        desired = {"app-default": MonitorSpec(name="app-default", url="https://example.com")}
+        desired = {
+            "app-default": MonitorSpec(name="app-default", url="https://example.com")
+        }
         reconcile(desired, actual={}, groups_map={})
         mock_kuma.add_monitor.assert_called_once_with(
             type="http",
@@ -20,13 +22,17 @@ class TestReconcileCreate(unittest.TestCase):
             parent=None,
             accepted_statuscodes=None,
         )
-        mock_kuma.add_monitor_tag.assert_called_once_with(tag_id=1, monitor_id=5, value="")
+        mock_kuma.add_monitor_tag.assert_called_once_with(
+            tag_id=1, monitor_id=5, value=""
+        )
 
     @patch("kuma_ingress_watcher.controller.kuma")
     @patch("kuma_ingress_watcher.controller.ownership_tag_id", 1)
     def test_resolves_parent_group_by_name(self, mock_kuma):
         mock_kuma.add_monitor.return_value = {"monitorID": 5}
-        desired = {"app": MonitorSpec(name="app", url="https://example.com", parent="my-group")}
+        desired = {
+            "app": MonitorSpec(name="app", url="https://example.com", parent="my-group")
+        }
         groups_map = {"my-group": 99}
         reconcile(desired, actual={}, groups_map=groups_map)
         mock_kuma.add_monitor.assert_called_once_with(

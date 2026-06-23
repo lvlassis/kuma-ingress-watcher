@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from kuma_ingress_watcher.controller import reconcile, MonitorSpec
 
 
@@ -14,7 +14,14 @@ class TestReconcileIntegration(unittest.TestCase):
             "existing-app": MonitorSpec(name="existing-app", url="https://updated.com"),
         }
         actual = {
-            "existing-app": {"id": 1, "url": "https://old.com", "type": "http", "interval": 60, "method": "GET", "parent": None},
+            "existing-app": {
+                "id": 1,
+                "url": "https://old.com",
+                "type": "http",
+                "interval": 60,
+                "method": "GET",
+                "parent": None,
+            },
             "orphan": {"id": 2, "url": "https://orphan.com"},
         }
 

@@ -13,7 +13,18 @@ class TestReconcileDelete(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.kuma")
     def test_does_not_delete_desired_monitors(self, mock_kuma):
         desired = {"app": MonitorSpec(name="app", url="https://example.com")}
-        actual = {"app": {"id": 1, "name": "app", "url": "https://example.com", "type": "http", "interval": 60, "method": "GET", "parent": None, "tags": []}}
+        actual = {
+            "app": {
+                "id": 1,
+                "name": "app",
+                "url": "https://example.com",
+                "type": "http",
+                "interval": 60,
+                "method": "GET",
+                "parent": None,
+                "tags": [],
+            }
+        }
         reconcile(desired, actual, groups_map={})
         mock_kuma.delete_monitor.assert_not_called()
 

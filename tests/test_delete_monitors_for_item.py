@@ -1,11 +1,22 @@
 import unittest
 from unittest.mock import patch
-from kuma_ingress_watcher.controller import reconcile, _monitor_config_differs, MonitorSpec
+from kuma_ingress_watcher.controller import (
+    reconcile,
+    _monitor_config_differs,
+    MonitorSpec,
+)
 
 
 class TestMonitorConfigDiffers(unittest.TestCase):
     def _actual(self, **overrides):
-        base = {"id": 1, "url": "https://example.com", "type": "http", "interval": 60, "method": "GET", "parent": None}
+        base = {
+            "id": 1,
+            "url": "https://example.com",
+            "type": "http",
+            "interval": 60,
+            "method": "GET",
+            "parent": None,
+        }
         base.update(overrides)
         return base
 
@@ -32,26 +43,48 @@ class TestMonitorConfigDiffers(unittest.TestCase):
     def test_parent_change_detected(self):
         spec = MonitorSpec(name="app", url="https://example.com", parent="my-group")
         groups_map = {"my-group": 99}
-        self.assertTrue(_monitor_config_differs(spec, self._actual(parent=None), groups_map))
+        self.assertTrue(
+            _monitor_config_differs(spec, self._actual(parent=None), groups_map)
+        )
 
     def test_parent_resolved_correctly(self):
         spec = MonitorSpec(name="app", url="https://example.com", parent="my-group")
         groups_map = {"my-group": 99}
-        self.assertFalse(_monitor_config_differs(spec, self._actual(parent=99), groups_map))
+        self.assertFalse(
+            _monitor_config_differs(spec, self._actual(parent=99), groups_map)
+        )
 
 
 class TestReconcileUpdate(unittest.TestCase):
     @patch("kuma_ingress_watcher.controller.kuma")
     def test_updates_monitor_when_url_changed(self, mock_kuma):
         desired = {"app": MonitorSpec(name="app", url="https://new.com")}
-        actual = {"app": {"id": 2, "url": "https://old.com", "type": "http", "interval": 60, "method": "GET", "parent": None}}
+        actual = {
+            "app": {
+                "id": 2,
+                "url": "https://old.com",
+                "type": "http",
+                "interval": 60,
+                "method": "GET",
+                "parent": None,
+            }
+        }
         reconcile(desired, actual, groups_map={})
         mock_kuma.edit_monitor.assert_called_once()
 
     @patch("kuma_ingress_watcher.controller.kuma")
     def test_no_update_when_config_unchanged(self, mock_kuma):
         desired = {"app": MonitorSpec(name="app", url="https://example.com")}
-        actual = {"app": {"id": 2, "url": "https://example.com", "type": "http", "interval": 60, "method": "GET", "parent": None}}
+        actual = {
+            "app": {
+                "id": 2,
+                "url": "https://example.com",
+                "type": "http",
+                "interval": 60,
+                "method": "GET",
+                "parent": None,
+            }
+        }
         reconcile(desired, actual, groups_map={})
         mock_kuma.edit_monitor.assert_not_called()
 
@@ -60,7 +93,16 @@ class TestReconcileUpdate(unittest.TestCase):
     def test_update_failure_logs_error(self, mock_logger, mock_kuma):
         mock_kuma.edit_monitor.side_effect = Exception("API error")
         desired = {"app": MonitorSpec(name="app", url="https://new.com")}
-        actual = {"app": {"id": 2, "url": "https://old.com", "type": "http", "interval": 60, "method": "GET", "parent": None}}
+        actual = {
+            "app": {
+                "id": 2,
+                "url": "https://old.com",
+                "type": "http",
+                "interval": 60,
+                "method": "GET",
+                "parent": None,
+            }
+        }
         reconcile(desired, actual, groups_map={})
         mock_logger.error.assert_called_once()
 

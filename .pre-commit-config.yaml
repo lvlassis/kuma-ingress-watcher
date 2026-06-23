@@ -5,24 +5,24 @@ repos:
         name: poetry-check
         description: run poetry check to validate config
         entry: poetry check
-        language: python
+        language: system
         pass_filenames: false
         files: ^(.*/)?(poetry\.lock|pyproject\.toml)$
       - id: poetry-black
         name: poetry-black
         description: run black
         entry: poetry run black .
-        language: python
+        language: system
         pass_filenames: false
       - id: poetry-flake8
         name: poetry-flake8
         description: run linter
         entry: poetry run flake8
         pass_filenames: false
-        language: python
+        language: system
       - id: poetry-pytest
         name: poetry-pytest
         description: run pytest
         entry: poetry run pytest
-        language: python
+        language: system
         pass_filenames: false

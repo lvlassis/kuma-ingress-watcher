@@ -131,7 +131,10 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
     namespace = metadata["namespace"]
     spec = item.get("spec") or {}
 
-    enabled = annotations.get("uptime-kuma.autodiscovery.probe.enabled", "true").lower() == "true"
+    enabled = (
+        annotations.get("uptime-kuma.autodiscovery.probe.enabled", "true").lower()
+        == "true"
+    )
     if not enabled:
         return []
 
@@ -148,7 +151,9 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
     hard_host = annotations.get("uptime-kuma.autodiscovery.probe.host")
     method = annotations.get("uptime-kuma.autodiscovery.probe.method", "GET")
     parent = annotations.get("uptime-kuma.autodiscovery.probe.parent", DEFAULT_PARENT)
-    accepted_statuscodes = annotations.get("uptime-kuma.autodiscovery.probe.accepted-statuscodes")
+    accepted_statuscodes = annotations.get(
+        "uptime-kuma.autodiscovery.probe.accepted-statuscodes"
+    )
 
     if accepted_statuscodes:
         try:
@@ -156,7 +161,9 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
             if type(accepted_statuscodes) is not list:
                 raise ValueError("accepted-statuscodes must be a list")
         except (ValueError, yaml.YAMLError):
-            logger.warning(f"Failed to process accepted-statuscodes for {name}, skipping")
+            logger.warning(
+                f"Failed to process accepted-statuscodes for {name}, skipping"
+            )
             accepted_statuscodes = None
 
     specs = []
@@ -171,17 +178,23 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
                 if path:
                     url = f"{url}{path}"
 
-                indexed_name = f"{monitor_name}-{index}" if len(routes_or_rules) > 1 else monitor_name
-                specs.append(MonitorSpec(
-                    name=indexed_name,
-                    url=url,
-                    interval=interval,
-                    probe_type=probe_type,
-                    headers=headers,
-                    method=method,
-                    parent=parent,
-                    accepted_statuscodes=accepted_statuscodes,
-                ))
+                indexed_name = (
+                    f"{monitor_name}-{index}"
+                    if len(routes_or_rules) > 1
+                    else monitor_name
+                )
+                specs.append(
+                    MonitorSpec(
+                        name=indexed_name,
+                        url=url,
+                        interval=interval,
+                        probe_type=probe_type,
+                        headers=headers,
+                        method=method,
+                        parent=parent,
+                        accepted_statuscodes=accepted_statuscodes,
+                    )
+                )
             index += 1
 
     return specs
@@ -200,7 +213,9 @@ def compute_monitors_from_file(file_path) -> list[MonitorSpec]:
         try:
             entries = yaml.safe_load(content)
         except yaml.YAMLError as e:
-            logger.error(f"Failed to process file {file_path}: Invalid YAML format ({e})")
+            logger.error(
+                f"Failed to process file {file_path}: Invalid YAML format ({e})"
+            )
             return []
 
         for entry in entries:
@@ -212,25 +227,31 @@ def compute_monitors_from_file(file_path) -> list[MonitorSpec]:
 
                 statuscodes = entry.get("accepted-statuscodes")
                 if statuscodes is not None and type(statuscodes) is not list:
-                    raise ValueError("Invalid entry format - accepted-statuscodes must be a list")
+                    raise ValueError(
+                        "Invalid entry format - accepted-statuscodes must be a list"
+                    )
 
-                specs.append(MonitorSpec(
-                    name=entry["name"],
-                    url=entry["url"],
-                    interval=entry.get("interval", 60),
-                    probe_type=entry.get("type", "http"),
-                    headers=entry.get("headers", {}),
-                    method=entry.get("method", "GET"),
-                    parent=entry.get("parent"),
-                    accepted_statuscodes=statuscodes,
-                ))
+                specs.append(
+                    MonitorSpec(
+                        name=entry["name"],
+                        url=entry["url"],
+                        interval=entry.get("interval", 60),
+                        probe_type=entry.get("type", "http"),
+                        headers=entry.get("headers", {}),
+                        method=entry.get("method", "GET"),
+                        parent=entry.get("parent"),
+                        accepted_statuscodes=statuscodes,
+                    )
+                )
             except (ValueError, KeyError) as e:
                 logger.warning(f"Skipping invalid entry: {entry} ({str(e)})")
 
     except FileNotFoundError:
         logger.error(f"File {file_path} not found.")
     except Exception as e:
-        logger.error(f"An unexpected error occurred while processing file {file_path}: {str(e)}")
+        logger.error(
+            f"An unexpected error occurred while processing file {file_path}: {str(e)}"
+        )
 
     return specs
 
@@ -257,16 +278,20 @@ def compute_desired_state() -> dict[str, MonitorSpec]:
 
 def _monitor_config_differs(spec: MonitorSpec, monitor: dict, groups_map: dict) -> bool:
     desired_parent_id = groups_map.get(spec.parent) if spec.parent else None
-    return any([
-        str(spec.url) != str(monitor.get("url", "")),
-        int(spec.interval) != int(monitor.get("interval", 60)),
-        str(spec.probe_type) != str(monitor.get("type", "")),
-        str(spec.method).upper() != str(monitor.get("method", "GET")).upper(),
-        desired_parent_id != monitor.get("parent"),
-    ])
+    return any(
+        [
+            str(spec.url) != str(monitor.get("url", "")),
+            int(spec.interval) != int(monitor.get("interval", 60)),
+            str(spec.probe_type) != str(monitor.get("type", "")),
+            str(spec.method).upper() != str(monitor.get("method", "GET")).upper(),
+            desired_parent_id != monitor.get("parent"),
+        ]
+    )
 
 
-def reconcile(desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_map: dict):
+def reconcile(
+    desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_map: dict
+):
     desired_names = set(desired.keys())
     actual_names = set(actual.keys())
 
@@ -284,7 +309,9 @@ def reconcile(desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_m
                 parent=groups_map.get(spec.parent) if spec.parent else None,
                 accepted_statuscodes=spec.accepted_statuscodes,
             )
-            kuma.add_monitor_tag(tag_id=ownership_tag_id, monitor_id=result["monitorID"], value="")
+            kuma.add_monitor_tag(
+                tag_id=ownership_tag_id, monitor_id=result["monitorID"], value=""
+            )
             logger.info(f"Created monitor {name}")
         except Exception as e:
             logger.error(f"Failed to create monitor {name}: {e}")
@@ -362,7 +389,11 @@ def reconciliation_loop():
     while True:
         try:
             all_monitors = kuma.get_monitors()
-            groups_map = {m["name"]: m["id"] for m in all_monitors if m.get("type") == MonitorType.GROUP}
+            groups_map = {
+                m["name"]: m["id"]
+                for m in all_monitors
+                if m.get("type") == MonitorType.GROUP
+            }
             actual = {
                 m["name"]: m
                 for m in all_monitors
@@ -386,7 +417,9 @@ def main():
     if WATCH_INGRESSROUTES or WATCH_INGRESS or LOAD_MONITOR_FROM_FILE:
         reconciliation_loop()
     else:
-        logger.warning("Nothing to watch. Set WATCH_INGRESSROUTES, WATCH_INGRESS, or ENABLE_FILE_MONITOR.")
+        logger.warning(
+            "Nothing to watch. Set WATCH_INGRESSROUTES, WATCH_INGRESS, or ENABLE_FILE_MONITOR."
+        )
 
 
 if __name__ == "__main__":
