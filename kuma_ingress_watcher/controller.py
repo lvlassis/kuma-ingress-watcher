@@ -270,6 +270,7 @@ def reconcile(desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_m
     desired_names = set(desired.keys())
     actual_names = set(actual.keys())
 
+    # Creates monitors that are at the desired state but aren't at the current state
     for name in desired_names - actual_names:
         spec = desired[name]
         try:
@@ -288,6 +289,7 @@ def reconcile(desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_m
         except Exception as e:
             logger.error(f"Failed to create monitor {name}: {e}")
 
+    # Removes monitors that are at the actual state but aren't at the desired state
     for name in actual_names - desired_names:
         try:
             kuma.delete_monitor(actual[name]["id"])
@@ -295,6 +297,7 @@ def reconcile(desired: dict[str, MonitorSpec], actual: dict[str, dict], groups_m
         except Exception as e:
             logger.error(f"Failed to delete monitor {name}: {e}")
 
+    # Updates monitors state that are both at the desired and actual states
     for name in desired_names & actual_names:
         spec = desired[name]
         monitor = actual[name]
