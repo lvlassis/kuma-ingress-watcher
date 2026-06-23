@@ -39,7 +39,7 @@ class TestComputeMonitorsUrlConstruction(unittest.TestCase):
             "uptime-kuma.autodiscovery.probe.port": "8080",
         })
         specs = compute_monitors_for_routing_object(item, "IngressRoute")
-        self.assertEqual(specs[0].url, "https://tintin/milou:8080")
+        self.assertEqual(specs[0].url, "https://tintin:8080/milou")
 
     def test_multi_route_with_hard_host_uses_same_host_for_all(self):
         item = self._item(

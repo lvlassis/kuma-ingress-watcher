@@ -166,10 +166,10 @@ def compute_monitors_for_routing_object(item, type_obj) -> list[MonitorSpec]:
         if hosts:
             for host in hosts:
                 url = f"https://{hard_host if hard_host else host}"
-                if path:
-                    url = f"{url}{path}"
                 if port:
                     url = f"{url}:{port}"
+                if path:
+                    url = f"{url}{path}"
 
                 indexed_name = f"{monitor_name}-{index}" if len(routes_or_rules) > 1 else monitor_name
                 specs.append(MonitorSpec(
